@@ -46,11 +46,11 @@ boston <- boston_raw |>
 
 # Introduction
 
-Running is one of my hobbies, and during running I heard that starting slowly can save energy for later. I also heard that starting quickly can help runners finish sooner. This made me curious about the relationship between first-half and second-half times.
+Comparing first-half and second-half marathon times can help describe differences in average pace between the two halves. This project examines the relationship between first-half and second-half times in the 2023 Boston Marathon.
 
-My research question is: What second-half time does the model predict for a given first-half time? I also wanted to know how much longer or shorter the second half was on average in these data. Because the two halves have equal distances, longer times indicate a slower average pace.
+The research question is: What second-half time does the model predict for a given first-half time? The analysis also examines how much longer or shorter the second half was on average in these data. Because the two halves have equal distances, longer times indicate a slower average pace.
 
-I expect a positive association because a runner's fitness can affect both halves. I used simple linear regression for prediction and a paired t-test to compare the two halves. The fitted model predicted that when the first-half time was 100 minutes, the second-half time would be about 107.26 minutes. Also, the observed second half was 8.75 minutes longer on average. 
+A positive association is expected because a runner's fitness can affect both halves. simple linear regression was used for prediction, and a paired t-test was used to compare the two halves. The fitted model predicted that when the first-half time was 100 minutes, the second-half time would be about 107.26 minutes. Also, the observed second half was 8.75 minutes longer on average.
 
 @sec-data introduces the data used in this analysis. @sec-methods describes the model, @sec-results presents the results, and @sec-discussion explains the limitations.
 
@@ -77,7 +77,7 @@ print(p_boston)
 
 I only used the 2023 Boston Marathon dataset from the SCORE Sports Data Repository [@boston2023]. Each row is one recorded finisher. The file had `r format(nrow(boston_raw), big.mark = ",")` records. I used `r format(nrow(boston), big.mark = ",")` records with valid times.
 
-I used first-half time as the predictor and second-half time as the response. Both are measured in minutes. I divided halfway time in seconds by 60. To get second-half time, I subtracted halfway time from net finish time and divided by 60. Net finish time starts when a runner crosses the starting line. 
+First-half time was the predictor and second-half time was the response. The recorded times were converted from seconds to minutes: first-half time was halfway time divided by 60, and second-half time was (net finish time minus halfway time) divided by 60. Net finish time starts when a runner crosses the starting line.
 
 I removed `r nrow(boston_raw) - nrow(boston)` records with missing halfway times. There were no missing net finish times, and all remaining half times were finite and positive. I kept unusually fast or slow valid records. The results therefore describe finishers with recorded splits.
 
@@ -193,6 +193,6 @@ This analysis cannot show whether changing one runner's starting pace would impr
 
 The residual plots also showed problems with the model assumptions. The regression confidence and prediction intervals may therefore be less reliable than the usual model suggests.
 
-I would like to study other races and shorter-distance splits. For now, these results help me understand the records, but they do not tell me which starting strategy will work best for me.
+Future work could use additional years of the Boston Marathon to check whether the relationship is similar across years. Other races and shorter-distance splits could also be studied. For now, these results help me understand the records, but they do not tell me which starting strategy will work best for me.
 
 # References
