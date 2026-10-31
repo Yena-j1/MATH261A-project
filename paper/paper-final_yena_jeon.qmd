@@ -1,0 +1,217 @@
+---
+title: "Predicting Second-Half Marathon Times and Comparing Average Pace"
+subtitle: "An Analysis of 2023 Boston Marathon Finishers"
+author: "Yena Jeon"
+thanks: "Project repository available at: [https://github.com/Yena-j1/MATH261A-project](https://github.com/Yena-j1/MATH261A-project)."
+date: 2026-10-30
+date-format: long
+abstract: "Running is my hobby, and I have heard different advice about whether to start a race slowly or quickly. Comparing marathon split times provides a way to examine the relationship between first-half and second-half performance. This study used 26,526 finisher records from the 2023 Boston Marathon dataset in the SCORE Sports Data Repository to fit a simple linear regression of second-half time on first-half time. For each additional minute in first-half time, the predicted mean second-half time was 1.22 minutes longer. On average, second-half times were 8.75 minutes longer than first-half times. The results summarize the relationship observed among finishers in this race, but violations of the regression assumptions may make the confidence and prediction intervals less reliable. The results also do not show that running the first half faster or slower would cause a runner’s second-half time to change."
+format: pdf
+bibliography: references.bib
+number-sections: true
+---
+
+```{r prepare-data}
+#| warning: false
+#| message: false
+#| include: false
+library(tidyverse)
+library(ggpubr)
+
+data_file <- "data/boston_marathon_2023.csv"
+if (!file.exists(data_file)) {
+  dir.create("data", showWarnings = FALSE)
+  download.file(
+    "https://data.scorenetwork.org/data/boston_marathon_2023.csv",
+    data_file, mode = "wb"
+  )
+}
+boston_raw <- read_csv(data_file)
+
+boston <- boston_raw |>
+  filter(
+    !is.na(half_time_sec),
+    !is.na(finish_net_sec)
+  ) |>
+  mutate(
+    first_half_min = half_time_sec / 60,
+    second_half_sec = finish_net_sec - half_time_sec,
+    second_half_min = second_half_sec / 60
+  ) |>
+  filter(
+    is.finite(first_half_min), is.finite(second_half_min),
+    first_half_min > 0, second_half_min > 0
+  )
+```
+
+# Introduction
+
+Comparing first-half and second-half marathon times provides an interesting way to examine how runners’ performance changes during a race. Previous studies have also examined marathon pacing and found that uneven pacing is related to slower finish times and that late-race slowing differs across runners [@hubble_zhao_2016; @smyth_2021]. Examining the relationship between first-half and second-half times can therefore show both the overall pattern and differences among finishers in the 2023 Boston Marathon.
+
+The research question is: What second-half time does the model predict for a given first-half time? The analysis also examines how much longer or shorter the second half was on average in these data. Because the two halves have equal distances, longer times indicate a slower average pace.
+
+A positive association was expected because a runner’s fitness may affect performance in both halves. Simple linear regression was used to predict mean second-half time from first-half time, and a paired t-test was used to compare the mean times between the two halves. For a first-half time of 100 minutes, the fitted model predicted a mean second-half time of about 107.26 minutes. The observed second-half time was 8.75 minutes longer on average.
+
+@sec-data introduces the data used in this analysis. @sec-methods describes the model, @sec-results presents the results, and @sec-discussion explains the limitations.
+
+# Data {#sec-data}
+
+```{r fig-boston-scatter}
+#| echo: false
+#| warning: false
+#| message: false
+#| fig-width: 7
+#| fig-height: 4.5
+#| out-width: "88%"
+#| fig-align: center
+#| fig-cap: "First-half and second-half times, in minutes, with the fitted regression line. Each point is one finisher."
+p_boston <- ggplot(
+  boston,
+  aes(x = first_half_min, y = second_half_min)
+) +
+  geom_point(alpha = 0.15) +
+  geom_smooth(method = "lm", se = FALSE) +
+  theme_pubr() +
+  theme(axis.title.x = element_text(hjust = 0.5, margin = margin(t = 8))) +
+  xlab("First-half time (minutes)") +
+  ylab("Second-half time (minutes)") +
+  ggtitle("First-half and second-half times")
+
+print(p_boston)
+```
+
+The analysis used the 2023 Boston Marathon dataset from the SCORE Sports Data Repository [@boston2023]. Each row is one recorded finisher. The file had `r format(nrow(boston_raw), big.mark = ",")` records, of which `r format(nrow(boston), big.mark = ",")` had valid times and were included in the analysis.
+
+First-half time was the predictor and second-half time was the response. The recorded times were provided in seconds and converted to minutes. First-half time was halfway time divided by 60, and second-half time was (net finish time minus halfway time) divided by 60. Net finish time starts when a runner crosses the starting line.
+
+The `r nrow(boston_raw) - nrow(boston)` records with missing halfway times were excluded. There were no missing net finish times, and all remaining half times were finite and positive. Unusually fast or slow valid records were retained. The results therefore describe finishers with recorded splits.
+
+The median first-half time is `r round(median(boston$first_half_min), 2)` minutes, with a range of `r round(min(boston$first_half_min), 2)` to `r round(max(boston$first_half_min), 2)` minutes. The median second-half time is `r round(median(boston$second_half_min), 2)` minutes, with a range of `r round(min(boston$second_half_min), 2)` to `r round(max(boston$second_half_min), 2)` minutes. @fig-boston-scatter shows a positive relationship. Runners with longer first-half times usually had longer second-half times. Runners with longer first-half times had more variation in their second-half times.
+
+The data are limited to finishers from the 2023 Boston Marathon with complete halfway and finish times. Therefore, the results may not apply to nonfinishers, other races, or other years. All runners were analyzed together, so the overall relationship may not be the same for every group of runners.
+
+
+# Methods {#sec-methods}
+
+The analysis used the simple linear regression model
+
+$$Y_i = \beta_0 +\beta_1 X_i + \varepsilon_i$$
+
+For runner $i$, $X_i$ is first-half time and $Y_i$ is second-half time, both measured in minutes. The conditional mean is $E(Y_i \mid X_i)=\beta_0+\beta_1X_i$. Thus, $\beta_1$ represents how much the mean second-half time changes when the first-half time increases by one minute. The intercept $\beta_0$ is the model's mean second-half time when first-half time is zero. The model was fitted by ordinary least squares and used to predict second-half times.
+
+The primary two-sided test compared $H_0:\beta_1=0$ with $H_A:\beta_1\ne0$ at the 0.05 significance level. The analysis calculated a 95% confidence interval for the slope and 95% prediction intervals for individual runners. The confidence interval is for the slope, while the prediction interval is for one runner’s second-half time.
+
+Let $D_i=Y_i-X_i$ denote runner $i$'s second-half time minus first-half time. The paired t-test compared $H_0:\mu_D=0$ with $H_A:\mu_D\ne0$, where $\mu_D$ is the average of these differences. A 95% confidence interval was calculated for this mean difference.
+
+The regression model assumes a linear mean relationship, independent errors with mean zero, and constant error variance. The usual tests and intervals also assume normally distributed errors. The scatterplot and residual-versus-fitted plot were used to assess linearity and constant variance, and the Q-Q plot was used to assess residual normality. These plots cannot establish whether the observations are independent. The paired t-test assumes that the runner-level differences are independent and approximately normally distributed.
+
+The analysis was conducted using R version 4.6.1 [@R_language] in RStudio.
+
+# Results {#sec-results}
+
+```{r boston-lm}
+#| echo: false
+#| warning: false
+#| message: false
+lm_fit <- lm(
+  second_half_min ~ first_half_min,
+  data = boston
+)
+fit_summary <- summary(lm_fit)
+slope_ci <- confint(lm_fit)[2, ]
+```
+
+The fitted regression equation is
+
+$$
+\widehat{Y}_i = `r round(coef(lm_fit)[1], 2)` + `r round(coef(lm_fit)[2], 4)`X_i.
+$$
+$\widehat{Y}_i$ is the predicted mean second-half time in minutes.
+
+The estimated slope parameter is $b_1=$ `r round(coefficients(lm_fit)[2], 4)`. In other words, a one-minute longer first-half time was associated with a `r round(coef(lm_fit)[2], 2)`-minute longer predicted mean second-half time.
+
+The estimated intercept is `r round(coef(lm_fit)[1], 2)` minutes. Because a zero-minute first half is outside the meaningful range of the data, the intercept has no practical interpretation. @tbl-predictions shows examples for three observed-range first-half times.
+
+```{r tbl-predictions}
+#| echo: false
+#| warning: false
+#| message: false
+#| tbl-pos: "H"
+#| tbl-cap: "Predicted second-half times for selected first-half times. The lower and upper limits give the usual 95% prediction interval for an individual runner. All values are in minutes."
+new_runners <- data.frame(first_half_min = c(90, 100, 120))
+predictions <- predict(lm_fit, newdata = new_runners, interval = "prediction")
+prediction_table <- data.frame(new_runners, predictions)
+knitr::kable(prediction_table, format = "latex", digits = 2,
+             col.names = c("First half", "Predicted second half", "Lower limit", "Upper limit"))
+```
+
+For a first-half time of 100 minutes, the predicted mean second-half time was `r round(predictions[2, "fit"], 2)` minutes. The usual 95% prediction interval for an individual runner was `r round(predictions[2, "lwr"], 2)` to `r round(predictions[2, "upr"], 2)` minutes. The model predicts a mean response, so an individual runner's actual second-half time may differ. This interval depends on the model assumptions, and the residual plot and Q-Q plot showed problems with those assumptions.
+
+The correlation was `r round(cor(boston$first_half_min, boston$second_half_min), 3)`, and $R^2$ was `r round(fit_summary$r.squared, 3)`. The fitted line explained about `r round(100 * fit_summary$r.squared, 1)`% of the observed variation in second-half times. These results are based on the 2023 Boston Marathon and may not apply to other races.
+
+```{r pace-summary}
+#| warning: false
+#| message: false
+#| include: false
+boston$half_difference <- boston$second_half_min - boston$first_half_min
+mean_difference <- mean(boston$half_difference)
+pace_test <- t.test(boston$second_half_min, boston$first_half_min,
+                    paired = TRUE, alternative = "two.sided", conf.level = 0.95)
+```
+
+The paired t-test assessed whether the average second-half time differed from the average first-half time. Second-half times were `r round(mean_difference, 2)` minutes longer on average (95% CI: `r round(pace_test$conf.int[1], 2)` to `r round(pace_test$conf.int[2], 2)` minutes; $t =$ `r round(unname(pace_test$statistic), 2)`, df = `r format(unname(pace_test$parameter), big.mark = ",")`, $p$ `r format.pval(pace_test$p.value, digits = 3, eps = 0.001)`). The median difference was `r round(median(boston$half_difference), 2)` minutes. About `r round(100 * mean(boston$half_difference < 0), 1)`% of runners completed the second half faster than the first. Therefore, on average, runners took longer in the second half, but some ran it faster than the first half.
+
+```{r fig-boston-residual}
+#| echo: false
+#| warning: false
+#| message: false
+#| fig-pos: "H"
+#| fig-width: 7
+#| fig-height: 4.5
+#| out-width: "90%"
+#| fig-align: center
+#| fig-cap: "Residuals versus fitted second-half times, in minutes."
+plot_dat <- data.frame(
+  resid = resid(lm_fit),
+  fitted = fitted(lm_fit)
+)
+ggplot(plot_dat, aes(x = fitted, y = resid)) +
+  geom_point() +
+  geom_hline(yintercept = 0, linetype = "dashed") +
+  theme_pubr() +
+  ylab("Residual (minutes)") +
+  xlab("Fitted second-half time (minutes)") +
+  ggtitle("Residuals vs. fitted value plot")
+```
+
+```{r fig-boston-qq}
+#| echo: false
+#| warning: false
+#| message: false
+#| fig-pos: "H"
+#| fig-width: 7
+#| fig-height: 4.2
+#| out-width: "88%"
+#| fig-align: center
+#| fig-cap: "Normal Q-Q plot of regression residuals. Tail points depart from the reference line."
+qqnorm(resid(lm_fit), pch = 20, cex = 0.3)
+qqline(resid(lm_fit))
+```
+
+@fig-boston-residual showed more spread at longer fitted second-half times, indicating that the error variance was not constant. Because the residual spread was not constant, the standard errors and confidence intervals may be inaccurate. In @fig-boston-qq, the points in the tails did not follow the straight line, suggesting that the residuals were not normally distributed. This may make the prediction intervals for individual runners less reliable. The fitted line can still describe the overall pattern, but the p-values and intervals should be interpreted carefully.
+
+A two-sided t-test evaluated the null hypothesis $\beta_1=0$ against the two-sided alternative hypothesis $\beta_1\ne0$. The test gave $t =$ `r round(fit_summary$coefficients[2, 3], 2)`, with `r format(df.residual(lm_fit), big.mark = ",")` degrees of freedom and $p$ `r format.pval(fit_summary$coefficients[2, 4], digits = 3, eps = 0.001)`. The usual 95% confidence interval for the slope was `r round(slope_ci[1], 4)` to `r round(slope_ci[2], 4)`. Because the residual assumptions were not met, this interval should be interpreted cautiously.
+
+# Discussion {#sec-discussion}
+
+First-half time was a strong overall predictor of second-half time in these records. For a 100-minute first half, the model predicted a mean second-half time of `r round(predictions[2, "fit"], 2)` minutes, but the individual prediction interval ranged from `r round(predictions[2, "lwr"], 2)` to `r round(predictions[2, "upr"], 2)` minutes. This shows that the model describes the overall pattern but does not give a precise prediction for one runner. Second-half times were `r round(mean_difference, 2)` minutes longer than first-half times on average, although some runners completed the second half faster.
+
+The results do not show that running the first half faster or slower will cause a runner's second-half time to change. Fitness and training may affect both halves, and the analysis did not compare the same runner under different starting strategies. Therefore, the positive slope does not tell runners how fast they should run the first half.
+
+Because the residual spread increased and the residual tails were not normal, the confidence and prediction intervals may be less reliable. Predictions may be less precise for runners with longer second-half times because the residuals were more spread out in that range. Therefore, the fitted line shows the overall pattern in this race, but its intervals should be interpreted carefully.
+
+The analysis treated all runners as one group and was limited to 2023 finishers with complete times. The relationship may differ for some groups of runners or in other years and races. Future work could compare additional years or runner groups, but the present analysis describes only the overall relationship in the 2023 Boston Marathon records.
+
+\newpage
+
+# References

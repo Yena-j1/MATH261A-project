@@ -1,0 +1,17 @@
+project:
+  type: default
+  execute-dir: project
+  render:
+    - paper/paper-final_yena_jeon.qmd
+
+# for [1], [2] format: https://github.com/citation-style-language/styles/blob/master/ieee.csl
+csl: paper/ieee.csl
+link-citations: true
+link-bibliography: true
+
+format:
+  pdf:
+    cite-method: citeproc
+    colorlinks: true
+    citecolor: blue
+    urlcolor: blue
